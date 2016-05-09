@@ -1,0 +1,86 @@
+#Practical Machine Learning Final Project
+
+##Objective
+
+The object of this project is to predict how well the users perform barbells.
+
+##Load the data
+
+```{r cache = TRUE}
+setwd("d:/coursera/practical ML/project")
+library(caret)
+training <- read.csv("pml-training.csv", na.strings = c("", NA))
+testing <- read.csv("pml-testing.csv", na.strings = c("", NA))
+```
+
+##Cleaning data
+
+I remove the features in testing data set that are all NAs and the first 5 columns since they
+are related to time and the last one which is problem id
+
+```{r}
+problemid <- testing$problem_id
+features <- names(testing[, colSums(is.na(testing)) == 0])
+##remove the first 7 and the last
+features <- features[8 : 59]
+testing <- testing[, features]
+```
+
+I select the training data features according to the testing set
+
+```{r}
+classes <- training$classe
+training <- training[, features]
+training <- cbind(classes, training)
+```
+
+##Do the classification
+
+Split the training data into training and test set
+
+```{r}
+intrain <- createDataPartition(y = training$classes, p = 0.7, list = FALSE)
+training <- training[intrain, ]
+testing1 <- training[-intrain, ]
+```
+
+###First use the boosting
+
+```{r, cache = TRUE}
+set.seed(12345)
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 5,
+                           repeats = 1)
+modgbm <- train(classes~., data = training, method = "gbm",
+                trControl = fitControl,
+                verbose = FALSE)
+predgbm <- predict(modgbm, newdata = testing1)
+confusionMatrix(predgbm, testing1$classes)
+```
+
+###Then I use the classification tree
+
+```{r cache = TRUE}
+set.seed(12345)
+modtree <- train(classes~., data = training, method = "rpart")
+predtree <- predict(modtree, newdata = testing1)
+confusionMatrix(predtree, testing1$classes)
+```
+
+###Then I use the linear discriminant analysis
+
+```{r cache = TRUE}
+set.seed(12345)
+modlda <- train(classes~., data = training, method = "lda")
+predlda <- predict(modlda, newdata = testing1)
+confusionMatrix(predlda, testing1$classes)
+```
+
+##Finally I predict the outcome in the testing data set
+
+```{r}
+predictions <- predict(modgbm, newdata = testing)
+results <- data.frame(problemid, predictions)
+results
+```
+
